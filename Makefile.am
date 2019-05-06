@@ -119,6 +119,18 @@ exhaustive_tests_LDFLAGS = -static
 TESTS += exhaustive_tests
 endif
 
+# Yang Jun
+if USE_MYTESTS
+noinst_PROGRAMS += mytests
+mytests_SOURCES = src/mytests.c
+mytests_CPPFLAGS = -DSECP256K1_BUILD -I$(top_srcdir)/src $(SECP_INCLUDES)
+mytests_LDADD = $(SECP_LIBS) $(COMMON_LIB)
+mytests_LDFLAGS = -static
+TESTS += mytests
+endif
+##########
+
+
 JAVAROOT=src/java
 JAVAORG=org/bitcoin
 JAVA_GUAVA=$(srcdir)/$(JAVAROOT)/guava/guava-18.0.jar

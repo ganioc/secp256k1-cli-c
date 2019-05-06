@@ -26,10 +26,6 @@ void random_scalar_order_test(secp256k1_scalar *num) {
 int main()
 {
 
-  /* secp256k1_scalar msg, key, nonce; */
-  /* secp256k1_scalar sigr, sigs; */
-
-  /* printf("scalar size:%lu\n", sizeof(msg)); */
   printf("int size:%lu\n", sizeof(int));
 
   static const char *inputs[8] = {
@@ -55,35 +51,42 @@ int main()
       secp256k1_sha256_initialize(&hasher);
       secp256k1_sha256_write(&hasher, (const unsigned char *)(inputs[i]), strlen(inputs[i]));
       secp256k1_sha256_finalize(&hasher, out);
-      /*     CHECK(memcmp(out, outputs[i], 32) == 0);
-    if (strlen(inputs[i]) > 0)
-    {
-      int split = secp256k1_rand_int(strlen(inputs[i]));
-      secp256k1_sha256_initialize(&hasher);
-      secp256k1_sha256_write(&hasher, (const unsigned char *)(inputs[i]), split);
-      secp256k1_sha256_write(&hasher, (const unsigned char *)(inputs[i] + split), strlen(inputs[i]) - split);
-      secp256k1_sha256_finalize(&hasher, out);
-      CHECK(memcmp(out, outputs[i], 32) == 0);
-      } */
     }
 
   printf("It is my tests now\n");
   secp256k1_pubkey zero_pubkey;
+  secp256k1_pubkey pubkey2;
+  secp256k1_pubkey pubkey;
   secp256k1_ge pub;
   secp256k1_scalar msg, key, nonce;
   secp256k1_scalar sigr, sigs;
-
+  secp256k1_ecdsa_signature signature;
+  int fb;
+  unsigned char privkey[32];
+  unsigned char message[32];
+  
   memset(&zero_pubkey, 0, sizeof(zero_pubkey));
   
-  secp256k1_context *both = secp256k1_context_create(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+  secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
 
   /* init */
   random_scalar_order_test(&msg);
   random_scalar_order_test(&key);
+  secp256k1_scalar_get_b32(privkey, &key);
+  secp256k1_scalar_get_b32(message, &msg);
   
+  fb = secp256k1_ecdsa_sign(ctx, &signature, message, privkey, NULL, NULL);
+  printf("fb of sign:%d\n", fb);
 
-    
-  secp256k1_context_destroy(both);
+  fb = secp256k1_ec_pubkey_create(ctx, &pubkey2, privkey);
+  printf("create pubkey from privkey: %d\n", fb);
+
+  memcmp(&pubkey, &pubkey2, sizeof(pubkey));
+
+  fb = secp256k1_ecdsa_verify(ctx, &signature, message, &pubkey);
+  printf("Verifty signature: %d\n", fb);
+  
+  secp256k1_context_destroy(ctx);
 
   return 0;
 }

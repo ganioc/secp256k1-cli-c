@@ -58,11 +58,19 @@ int main()
   secp256k1_ecdsa_signature signature;
   int fb, i;
   unsigned char input[] = "abc";
-  unsigned char inputKey[] = {0xda, 0x6f, 0xea , 0xe3 , 0xca , 0x24 , 0x9c , 0x35 , 0x92 , 0x00 , 0x48 , 0x79 , 0x34 , 0x21 , 0x6f , 0x45 , 0xdd , 0x1c , 0x21 , 0x59 , 0x11 , 0x6c , 0x3e , 0xec , 0xc3 , 0x48 , 0xa7 , 0x4a , 0x3c , 0x7d , 0x16 , 0xba };
+  unsigned char inputKey[] = {
+    0xda, 0x6f, 0xea , 0xe3 , 0xca , 0x24 , 0x9c , 0x35 ,
+    0x92 , 0x00 , 0x48 , 0x79 , 0x34 , 0x21 , 0x6f , 0x45 ,
+    0xdd , 0x1c , 0x21 , 0x59 , 0x11 , 0x6c , 0x3e , 0xec ,
+    0xc3 , 0x48 , 0xa7 , 0x4a , 0x3c , 0x7d , 0x16 , 0xba
+  };
   unsigned char sha256Out[32], sha256Out2[32];
   unsigned char privkey[32];
   unsigned char message[32];
+  unsigned char pubkeyc[65];
+  size_t pubkeyclen = 65;
 
+  
   if (quick_sha256(input, strlen((const char *)input), sha256Out) == 0)
     {
       printf("sha256 1st finished\n");
@@ -95,10 +103,7 @@ int main()
   
   fb = secp256k1_ecdsa_sign(ctx, &signature, sha256Out2, inputKey, NULL, NULL);
   printf("fb of sign:%d\n", fb);
-
-  fb = secp256k1_ec_pubkey_create(ctx, &pubkey2, inputKey);
-  printf("create pubkey from privkey: %d\n", fb);
-
+  
   printf("\nsignature:\n");
   
   for(i=0; i<64;i++){
@@ -107,6 +112,39 @@ int main()
   }
   printf("\n");
 
+  fb = secp256k1_ecdsa_signature_normalize(ctx, NULL, &signature);
+  printf("\nsignature normalized: %d\n", fb);
+  
+  for(i=0; i<64;i++){
+    printf("%02x ", signature.data[i]);
+
+  }
+  printf("\n");
+  
+  fb = secp256k1_ec_seckey_verify(ctx, inputKey);
+  printf("fb of seckey verify: %d\n", fb);
+  
+  fb = secp256k1_ec_pubkey_create(ctx, &pubkey2, inputKey);
+  printf("create pubkey from privkey: %d\n", fb);
+
+  for(i=0; i<64;i++){
+    printf("%02x ", pubkey2.data[i]);
+
+  }
+
+  fb = secp256k1_ec_pubkey_serialize(ctx, pubkeyc, &pubkeyclen, &pubkey2, SECP256K1_EC_COMPRESSED);
+  printf("\npubkey serialize:\n");
+  for(i=0; i<65; i++){
+    printf("%02x ", pubkeyc[i]);
+  }
+  printf("\n");
+
+  fb = secp256k1_ec_pubkey_parse(ctx, &pubkey2, pubkeyc, pubkeyclen);
+  printf("pubkey2 after parse:\n");
+  for(i=0; i<64;i++){
+    printf("%02x ", pubkey2.data[i]);
+  }
+  
   /* fb = memcmp(&pubkey, &pubkey2, sizeof(pubkey)); */
   /* printf("memcmp pubkey pubkey2 : %d\n", fb); */
 

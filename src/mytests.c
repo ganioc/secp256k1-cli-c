@@ -8,6 +8,65 @@
 #include "include/secp256k1.h"
 #include "testrand_impl.h"
 
+/* printf switch flag */
+#define DEBUG true
+
+#define SUBCMD_SIGN         "sign"
+#define ARGS_LEN_SIGN       3
+#define SUBCMD_HASH256      "hash256"
+#define ARGS_LEN_HASH256    2
+#define SUBCMD_VERIFY       "verify"
+#define ARGS_LEN_VERIFY     3
+#define SUBCMD_TEST         "test"
+#define ARGS_LEN_TEST       2
+
+int ascii_to_int(char c){
+  char str[2];
+
+  if(c >= 0x61 && c <= 0x66){
+    return c - 0x61 + 10;
+  }else if( c >= 0x30 && c <= 0x39 ){
+    return c - 0x30;
+  }else{
+    return 0;
+  }
+
+  /* sprintf(str,"%c",c); */
+  /* int first = c / 16 - 3; */
+  /* int second = c % 16; */
+  /* int result = first*10 + second; */
+  /* if(result > 9) result--; */
+  /* return result; */
+  /* return atoi(str); */
+}
+
+int ascii_to_hex(char c, char d){
+  int high = ascii_to_int(c) * 16;
+  int low = ascii_to_int(d);
+  return high+low;
+}
+int arr_ascii_to_hex(unsigned char* input, int leninput,unsigned char*output, int lenoutput){
+  int lenInput = leninput;
+  int lenOutput = lenoutput;
+
+  if(lenInput!= lenOutput*2
+     || lenInput%2 != 0
+     || lenOutput%2 != 0){
+#if (DEBUG == true)
+    printf("input len:%d\n", lenInput);
+    printf("output len:%d\n", lenOutput);
+#endif
+    return -1;
+  }
+  int i, iLen = lenInput/2;
+  for(i = 0; i< iLen; i++){
+#if (DEBUG == true)
+    printf("input %02x %02x\n",input[i*2], input[i*2 +1]);
+#endif
+    output[i] = ascii_to_hex(input[i*2], input[i*2 + 1]);
+  }
+  return 0;
+}
 void printArrHex(unsigned char *input, unsigned int len)
 {
   int i;
@@ -45,9 +104,177 @@ int quick_sha256(unsigned char *input, unsigned int len, unsigned char *output)
   return 0;
 }
 
-int main()
-{
+int double_sha256(unsigned char *input, unsigned char*output){
+  unsigned char sha256Out[32];
+  int fb;
+  if(quick_sha256(input,strlen((const char *)input), sha256Out) == 0){
+#if (DEBUG == true)
+    printf("sha256 1st finished:\n");
+    printArrHex(sha256Out, 32);
 
+#endif
+  }else{
+    return -1;
+  }
+  if(quick_sha256(sha256Out,32, output) == 0){
+#if (DEBUG == true)
+    printf("sha256 2nd finished:\n");
+    printArrHex(output, 32);
+
+#endif
+  }else{
+    return -1;
+  }
+  return 0;
+}
+
+
+int signature_normalize(){
+
+}
+int sign_buffer_msg(){
+
+  
+}
+
+int verify_buffer_msg(){
+
+
+}
+int sign(unsigned char *msg, unsigned char *key, unsigned char *sig, int* rcid){
+  
+
+
+}
+void subcmd_sign(int argc, char** argv){
+  if(argc != ARGS_LEN_SIGN +1){
+    fb_wrong_args();
+    return;
+  }
+  char *ptrMsg= argv[2];
+  char *ptrKey = argv[3];
+  unsigned char msgHash[32];
+  unsigned char keyHash[32];
+  unsigned char siganature[64];
+  int rcid;
+
+  
+#if (DEBUG == true)
+  printf("sign:\n");
+  printf("msg: %s\n", ptrMsg);
+  printf("key: %s\n", ptrKey);
+#endif
+
+  if(strlen(ptrKey) != 64){
+    fb_wrong(-1, "sign wrong key");
+    return;
+  }
+
+  if(double_sha256(ptrMsg, msgHash) != 0){
+    fb_wrong(-1,"sign,double_sha256 fail");
+    return;
+  }
+
+  if(arr_ascii_to_hex(ptrKey,64, keyHash, 32) != 0){
+    fb_wrong(-1,"sign, arr ascii to hex fail");
+    return;
+  }
+#if(DEBUG == true)
+  printf("\nsign, msg and key\n");
+  printArrHex(msgHash, 32);
+  printArrHex(keyHash, 32);
+#endif
+
+  if(sign(msgHash, keyHash, signature, &rcid) != 0){
+    fb_wrong(-1, "sign fail");
+    return;
+  }
+}
+void subcmd_hash256(int argc, char **argv){
+  if(argc != ARGS_LEN_HASH256 + 1){
+    fb_wrong_args();
+    return;
+  }
+  char *ptrMsg = argv[2];
+
+#if (DEBUG == true)
+  printf("hash256:\n");
+  printf("msg: %s\n", ptrMsg);
+#endif  
+  
+}
+
+void subcmd_test(int argc, char **argv){
+ if(argc != ARGS_LEN_TEST + 1){
+    fb_wrong_args();
+    return;
+  }
+  char *ptrMsg = argv[2];
+
+  if( strlen((const char*)ptrMsg)%2 != 0){
+    fb_wrong_args();
+    return;
+  }
+
+  int a = 0;
+  unsigned char hexKey[32];
+
+  a = arr_ascii_to_hex(ptrMsg,strlen((const char*)ptrMsg), hexKey, 32);
+  
+#if (DEBUG == true)
+  printf("%d\n", a);
+  printArrHex(hexKey, 32);
+#endif
+
+}
+void fb_wrong_args(){
+  char str[] = "{\"status\":-1,\"data\":\"Wrong cmd args\"}";
+  printf("%s",str);
+}
+
+void fb_wrong_cmd(){
+  char str[] = "{\"status\":-1,\"data\":\"Wrong cmd\"}";
+  printf("%s",str);
+}
+void fb_wrong(int status, char *data){
+  char str[256];
+  sprintf("{\"status\":%d,\"data\":\"%s\"}", status, data);
+  printf("%s", str);
+}
+int main(int argc, char **argv){
+#if (DEBUG == true)
+  printf("argc:%d\n", argc);
+#endif
+
+  if(argc <2 ){
+    fb_wrong_args();
+    return -1;
+  }
+  
+#if (DEBUG == true)
+  printf("%s %s\n", argv[0], argv[1]);
+#endif
+ 
+  if(strcmp(argv[1], SUBCMD_SIGN) == 0){
+    subcmd_sign(argc, argv);
+  }
+  else if(strcmp(argv[1], SUBCMD_HASH256) == 0){
+    subcmd_hash256(argc, argv);
+  }
+  else if(strcmp(argv[1], SUBCMD_TEST) == 0){
+    subcmd_test(argc,argv);
+  }
+  else{
+    fb_wrong_cmd();
+  }
+
+  return 0;
+
+}
+
+int main_bk(int argc, char **argv)
+
+{
   printf("It is my tests now\n");
   secp256k1_pubkey zero_pubkey;
   secp256k1_pubkey pubkey2;

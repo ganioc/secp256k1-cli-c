@@ -7,22 +7,41 @@
 #include "secp256k1.c"
 #include "include/secp256k1.h"
 #include "testrand_impl.h"
+#include "include/secp256k1_recovery.h"
 
 /* printf switch flag */
-#define DEBUG true
+#define DEBUG_PRINTF
+#undef  DEBUG_PRINTF
 
 #define SUBCMD_SIGN         "sign"
 #define ARGS_LEN_SIGN       3
-#define SUBCMD_HASH256      "hash256"
-#define ARGS_LEN_HASH256    2
+#define SUBCMD_SHA256      "sha256"
+#define ARGS_LEN_SHA256    2
 #define SUBCMD_VERIFY       "verify"
 #define ARGS_LEN_VERIFY     3
 #define SUBCMD_TEST         "test"
 #define ARGS_LEN_TEST       2
 
-int ascii_to_int(char c){
-  char str[2];
 
+
+
+void fb_wrong_args(void){
+  char str[] = "{\"status\":-1,\"data\":\"Wrong cmd args\"}";
+  printf("%s",str);
+}
+
+void fb_wrong_cmd(void){
+  char str[] = "{\"status\":-1,\"data\":\"Wrong cmd\"}";
+  printf("%s",str);
+}
+void fb_wrong(int status, char *data){
+  char str[256];
+  sprintf(str, "{\"status\":%d,\"data\":\"%s\"}", status, data);
+  printf("%s", str);
+}
+
+int ascii_to_int(char c){
+ 
   if(c >= 0x61 && c <= 0x66){
     return c - 0x61 + 10;
   }else if( c >= 0x30 && c <= 0x39 ){
@@ -30,14 +49,16 @@ int ascii_to_int(char c){
   }else{
     return 0;
   }
-
-  /* sprintf(str,"%c",c); */
-  /* int first = c / 16 - 3; */
-  /* int second = c % 16; */
-  /* int result = first*10 + second; */
-  /* if(result > 9) result--; */
-  /* return result; */
-  /* return atoi(str); */
+}
+char hex_to_asicc(unsigned char ch){
+  if(ch <=9){
+    return ch + 0x30;
+  }
+  else if( ch >= 10 && ch <=15){
+    return ch -10 + 0x61;
+  }else{
+    return 0;
+  }
 }
 
 int ascii_to_hex(char c, char d){
@@ -48,28 +69,64 @@ int ascii_to_hex(char c, char d){
 int arr_ascii_to_hex(unsigned char* input, int leninput,unsigned char*output, int lenoutput){
   int lenInput = leninput;
   int lenOutput = lenoutput;
-
+  int i;
+  int iLen;
+  
   if(lenInput!= lenOutput*2
      || lenInput%2 != 0
      || lenOutput%2 != 0){
-#if (DEBUG == true)
+#ifdef DEBUG_PRINTF
     printf("input len:%d\n", lenInput);
     printf("output len:%d\n", lenOutput);
 #endif
     return -1;
   }
-  int i, iLen = lenInput/2;
+  
+  iLen = (int) lenInput/2;
   for(i = 0; i< iLen; i++){
-#if (DEBUG == true)
+
+#ifdef DEBUG_PRINTF
     printf("input %02x %02x\n",input[i*2], input[i*2 +1]);
 #endif
     output[i] = ascii_to_hex(input[i*2], input[i*2 + 1]);
   }
   return 0;
 }
+int arr_hex_to_ascii(unsigned char * input, int leninput, unsigned char *output, int lenoutput){
+  int lenInput = leninput;
+  int lenOutput = lenoutput;
+  int i;
+  int iLen = leninput;
+  char chH;
+  char chL;
+  
+  if(lenInput!= lenOutput/2
+     || lenInput%2 != 0
+     || lenOutput%2 != 0){
+#ifdef DEBUG_PRINTF
+    printf("hex_to_ascii input len:%d\n", lenInput);
+    printf("hex_to_ascii output len:%d\n", lenOutput);
+#endif
+    return -1;
+  }
+
+  for(i=0; i< iLen; i++){
+#ifdef DEBUG_PRINTF
+    printf("input %02x\n", input[i]);
+#endif
+    chH = input[i]/16;
+    chL = input[i] - 16*(input[i]/16);
+    output[i*2] = hex_to_asicc(chH);
+    output[i*2 + 1] = hex_to_asicc(chL);
+  }
+
+  
+  return 0;
+}
+
 void printArrHex(unsigned char *input, unsigned int len)
 {
-  int i;
+  unsigned int i;
   for (i = 0; i < len; i++)
     {
       printf("%02x ", input[i]);
@@ -106,9 +163,9 @@ int quick_sha256(unsigned char *input, unsigned int len, unsigned char *output)
 
 int double_sha256(unsigned char *input, unsigned char*output){
   unsigned char sha256Out[32];
-  int fb;
+  
   if(quick_sha256(input,strlen((const char *)input), sha256Out) == 0){
-#if (DEBUG == true)
+#ifdef DEBUG_PRINTF
     printf("sha256 1st finished:\n");
     printArrHex(sha256Out, 32);
 
@@ -117,7 +174,7 @@ int double_sha256(unsigned char *input, unsigned char*output){
     return -1;
   }
   if(quick_sha256(sha256Out,32, output) == 0){
-#if (DEBUG == true)
+#ifdef DEBUG_PRINTF
     printf("sha256 2nd finished:\n");
     printArrHex(output, 32);
 
@@ -129,37 +186,44 @@ int double_sha256(unsigned char *input, unsigned char*output){
 }
 
 
-int signature_normalize(){
+int sign(unsigned char *msg32, unsigned char *private_key, unsigned char *signature, int* recid){
+  secp256k1_context* secp256k1ctx;
+  secp256k1_ecdsa_recoverable_signature sig;
+  int fb;
 
-}
-int sign_buffer_msg(){
-
+  secp256k1_nonce_function noncefn = secp256k1_nonce_function_rfc6979;
   
-}
-
-int verify_buffer_msg(){
-
-
-}
-int sign(unsigned char *msg, unsigned char *key, unsigned char *sig, int* rcid){
+  secp256k1ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN
+					  | SECP256K1_CONTEXT_VERIFY);  
+  fb = secp256k1_ecdsa_sign_recoverable(secp256k1ctx, &sig, msg32, private_key, noncefn, NULL);
+  if(fb == 0){
+    secp256k1_context_destroy(secp256k1ctx);
+    return -1;
+  }
+  secp256k1_ecdsa_recoverable_signature_serialize_compact(secp256k1ctx, signature, recid, &sig);
   
-
-
+  secp256k1_context_destroy(secp256k1ctx);
+  return 0;
 }
 void subcmd_sign(int argc, char** argv){
-  if(argc != ARGS_LEN_SIGN +1){
-    fb_wrong_args();
-    return;
-  }
+
   char *ptrMsg= argv[2];
   char *ptrKey = argv[3];
   unsigned char msgHash[32];
   unsigned char keyHash[32];
-  unsigned char siganature[64];
+  unsigned char signature[64];
+  unsigned char sigOut[129];
   int rcid;
-
+  char jsonBuf[256];
   
-#if (DEBUG == true)
+  ptrMsg= argv[2];
+  ptrKey = argv[3];
+
+  if(argc != ARGS_LEN_SIGN +1){
+    fb_wrong_args();
+    return;
+  }  
+#ifdef DEBUG_PRINTF
   printf("sign:\n");
   printf("msg: %s\n", ptrMsg);
   printf("key: %s\n", ptrKey);
@@ -170,16 +234,16 @@ void subcmd_sign(int argc, char** argv){
     return;
   }
 
-  if(double_sha256(ptrMsg, msgHash) != 0){
+  if(double_sha256((unsigned char*)ptrMsg, msgHash) != 0){
     fb_wrong(-1,"sign,double_sha256 fail");
     return;
   }
 
-  if(arr_ascii_to_hex(ptrKey,64, keyHash, 32) != 0){
+  if(arr_ascii_to_hex((unsigned char*)ptrKey,64, keyHash, 32) != 0){
     fb_wrong(-1,"sign, arr ascii to hex fail");
     return;
   }
-#if(DEBUG == true)
+#ifdef DEBUG_PRINTF
   printf("\nsign, msg and key\n");
   printArrHex(msgHash, 32);
   printArrHex(keyHash, 32);
@@ -189,60 +253,88 @@ void subcmd_sign(int argc, char** argv){
     fb_wrong(-1, "sign fail");
     return;
   }
+#ifdef DEBUG_PRINTF
+  printf("signature and recid\n");
+  printArrHex(signature, 64);
+  printf("recid:%d\n", rcid);
+
+#endif
+  if(arr_hex_to_ascii(signature,64, sigOut, 128) != 0){
+    fb_wrong(-1, "sign, hex to ascii fail");
+    return;
+  }
+
+  sigOut[128] = 0x0;
+
+  sprintf(jsonBuf,"{\"status\":0,\"data\":{\"signature\":\"%s\",\"recid\":%d}}",sigOut,rcid);
+#ifdef DEBUG_PRINTF
+  printf("jsonBuf length:%lu\n", strlen((const char*)jsonBuf));
+  printf("sigOut:\n");
+  printf("%s\n", sigOut);
+  printf("sigOut len:%lu\n", strlen((const char*)sigOut));
+#endif
+  printf("%s", jsonBuf);
 }
 void subcmd_hash256(int argc, char **argv){
-  if(argc != ARGS_LEN_HASH256 + 1){
+  char *ptrMsg;
+  unsigned char sha256Out[32];
+  unsigned char temp[65];
+  char output[128];
+ 
+  if(argc != ARGS_LEN_SHA256 + 1){
     fb_wrong_args();
     return;
   }
-  char *ptrMsg = argv[2];
+  ptrMsg = argv[2];
 
-#if (DEBUG == true)
+#ifdef DEBUG_PRINTF
   printf("hash256:\n");
   printf("msg: %s\n", ptrMsg);
 #endif  
-  
+
+  if(quick_sha256((unsigned char*)ptrMsg,strlen((const char *)ptrMsg), sha256Out) == 0){
+#ifdef DEBUG_PRINTF
+    printf("sha256 1st finished:\n");
+    printArrHex(sha256Out, 32);
+#endif
+    
+    arr_hex_to_ascii(sha256Out, 32, temp, 64);
+    temp[64] = 0;
+    sprintf(output,"{\"status\":0,\"data\":\"%s\"}",(char *)temp);
+    printf("%s", output);
+  }else{
+    fb_wrong(-1, "hash256, fail");
+  }  
 }
 
 void subcmd_test(int argc, char **argv){
- if(argc != ARGS_LEN_TEST + 1){
+  char *ptrMsg;
+  unsigned char hexKey[32];
+  int a;
+  
+  if(argc != ARGS_LEN_TEST + 1){
     fb_wrong_args();
     return;
   }
-  char *ptrMsg = argv[2];
-
+  
+  ptrMsg = argv[2];
   if( strlen((const char*)ptrMsg)%2 != 0){
     fb_wrong_args();
     return;
   }
-
-  int a = 0;
-  unsigned char hexKey[32];
-
-  a = arr_ascii_to_hex(ptrMsg,strlen((const char*)ptrMsg), hexKey, 32);
   
-#if (DEBUG == true)
+
+  a = arr_ascii_to_hex((unsigned char*)ptrMsg,strlen((const char*)ptrMsg), hexKey, 32);
+  
+#ifdef DEBUG_PRINTF
   printf("%d\n", a);
   printArrHex(hexKey, 32);
 #endif
 
 }
-void fb_wrong_args(){
-  char str[] = "{\"status\":-1,\"data\":\"Wrong cmd args\"}";
-  printf("%s",str);
-}
 
-void fb_wrong_cmd(){
-  char str[] = "{\"status\":-1,\"data\":\"Wrong cmd\"}";
-  printf("%s",str);
-}
-void fb_wrong(int status, char *data){
-  char str[256];
-  sprintf("{\"status\":%d,\"data\":\"%s\"}", status, data);
-  printf("%s", str);
-}
 int main(int argc, char **argv){
-#if (DEBUG == true)
+#ifdef DEBUG_PRINTF
   printf("argc:%d\n", argc);
 #endif
 
@@ -251,14 +343,14 @@ int main(int argc, char **argv){
     return -1;
   }
   
-#if (DEBUG == true)
+#ifdef DEBUG_PRINTF
   printf("%s %s\n", argv[0], argv[1]);
 #endif
  
   if(strcmp(argv[1], SUBCMD_SIGN) == 0){
     subcmd_sign(argc, argv);
   }
-  else if(strcmp(argv[1], SUBCMD_HASH256) == 0){
+  else if(strcmp(argv[1], SUBCMD_SHA256) == 0){
     subcmd_hash256(argc, argv);
   }
   else if(strcmp(argv[1], SUBCMD_TEST) == 0){
@@ -275,13 +367,13 @@ int main(int argc, char **argv){
 int main_bk(int argc, char **argv)
 
 {
-  printf("It is my tests now\n");
+
   secp256k1_pubkey zero_pubkey;
   secp256k1_pubkey pubkey2;
   secp256k1_pubkey pubkey;
-  secp256k1_ge pub;
-  secp256k1_scalar msg, key, nonce;
-  secp256k1_scalar sigr, sigs;
+  /* secp256k1_ge pub; */
+  secp256k1_scalar msg, key;
+  /* secp256k1_scalar sigr, sigs; */
   secp256k1_ecdsa_signature signature;
   int fb, i;
   unsigned char input[] = "abc";
@@ -295,8 +387,11 @@ int main_bk(int argc, char **argv)
   unsigned char privkey[32];
   unsigned char message[32];
   unsigned char pubkeyc[65];
-  size_t pubkeyclen = 65;
-
+  size_t pubkeyclen;
+  secp256k1_context *ctx;
+  
+  pubkeyclen = 65;
+  printf("It is my tests now\n");
   
   if (quick_sha256(input, strlen((const char *)input), sha256Out) == 0)
     {
@@ -313,7 +408,7 @@ int main_bk(int argc, char **argv)
   memset(&zero_pubkey, 0, sizeof(zero_pubkey));
   memset(&pubkey, 0, sizeof(pubkey));
   
-  secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+  ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
 
   /* init */
   random_scalar_order_test(&msg);

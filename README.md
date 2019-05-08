@@ -59,3 +59,31 @@ libsecp256k1 is built using autotools:
     $ make
     $ ./tests
     $ sudo make install  # optional
+
+## secp256k1cmd
+secp256k1cmd subcmd arg1 , arg2 ...
+
+```
+secp256k1cmd sign msg key
+
+// msg - ascii string
+// key - hex in ascii format
+
+$ ./secp256k1cmd sign "abc" "da6feae3ca249c359200487934216f45dd1c2159116c3eecc348a74a3c7d16ba"
+
+{"status":0,"data":{"signature":"85c8c74e85ae7c15c313a1b1532147ed8bbebf2e8898b31fbb0d7e3664aa22f115388c30ee37b7730711c0790cfc9aebef660937721d307560e90f28ab86613c","recid":1}}
+
+// 错误返回 "status": -1
+
+secp256k1cmd sha256 msg
+
+// msg - ascii string
+
+$./secp256k1cmd sha256 "abc"
+{"status":0,"data":"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"}
+
+
+
+```
+
+

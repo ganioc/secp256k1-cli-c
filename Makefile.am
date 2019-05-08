@@ -120,13 +120,13 @@ TESTS += exhaustive_tests
 endif
 
 # Yang Jun
-if USE_MYTESTS
-noinst_PROGRAMS += mytests
-mytests_SOURCES = src/mytests.c
-mytests_CPPFLAGS = -DSECP256K1_BUILD -I$(top_srcdir)/src $(SECP_INCLUDES)
-mytests_LDADD = $(SECP_LIBS) $(COMMON_LIB)
-mytests_LDFLAGS = -static
-TESTS += mytests
+if USE_SECP256K1CMD
+noinst_PROGRAMS += secp256k1cmd
+secp256k1cmd_SOURCES = src/secp256k1cmd.c
+secp256k1cmd_CPPFLAGS = -DSECP256K1_BUILD -I$(top_srcdir)/src $(SECP_INCLUDES)
+secp256k1cmd_LDADD = $(SECP_LIBS) $(COMMON_LIB)
+secp256k1cmd_LDFLAGS = -static
+TESTS += secp256k1cmd
 endif
 ##########
 

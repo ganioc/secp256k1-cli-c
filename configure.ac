@@ -114,10 +114,10 @@ AC_ARG_ENABLE(exhaustive_tests,
     [use_exhaustive_tests=$enableval],
     [use_exhaustive_tests=yes])
 
-AC_ARG_ENABLE(mytests,
-	AS_HELP_STRING([--enable-mytests],[compile mytests (default is yes)]),
-        [use_mytests=$enableval],
-	[use_mytests=yes])
+AC_ARG_ENABLE(secp256k1cmd,
+	AS_HELP_STRING([--enable-secp256k1cmd],[compile secp256k1cmd (default is yes)]),
+        [use_secp256k1cmd=$enableval],
+	[use_secp256k1cmd=yes])
 
 
 AC_ARG_ENABLE(endomorphism,
@@ -494,7 +494,7 @@ AM_CONDITIONAL([ENABLE_COVERAGE], [test x"$enable_coverage" = x"yes"])
 AM_CONDITIONAL([USE_TESTS], [test x"$use_tests" != x"no"])
 AM_CONDITIONAL([USE_EXHAUSTIVE_TESTS], [test x"$use_exhaustive_tests" != x"no"])
 # Yang Jun
-AM_CONDITIONAL([USE_MYTESTS], [test x"$use_mytests" != x"no"])
+AM_CONDITIONAL([USE_SECP256K1CMD], [test x"$use_secp256k1cmd" != x"no"])
 AM_CONDITIONAL([USE_BENCHMARK], [test x"$use_benchmark" = x"yes"])
 AM_CONDITIONAL([USE_ECMULT_STATIC_PRECOMPUTATION], [test x"$set_precomp" = x"yes"])
 AM_CONDITIONAL([ENABLE_MODULE_ECDH], [test x"$enable_module_ecdh" = x"yes"])
